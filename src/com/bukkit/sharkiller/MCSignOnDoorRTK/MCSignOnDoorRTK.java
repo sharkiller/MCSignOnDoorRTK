@@ -190,12 +190,10 @@ public class MCSignOnDoorRTK extends Module{
 				
 			} catch (SecurityException e){
 				LOG.severe("Security exception while binding socket! Cannot start server.");
-				System.exit(-1);
 			} catch (BindException e){
 				LOG.severe("Cannot bind to port "+port+".");
 				if (ip != null) LOG.severe("Make sure the IP address entered is a valid IP address for this computer!");
 				LOG.severe("Make sure the Minecraft Server is not still running and no other instances of MCSignOnDoor are running!");
-				System.exit(-1);
 			} catch (Exception e) {
 				LOG.log(Level.SEVERE, "Unhandled exception in main loop!", e);
 			} finally {
