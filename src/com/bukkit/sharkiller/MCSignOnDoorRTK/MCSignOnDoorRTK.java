@@ -1,9 +1,6 @@
 package com.bukkit.sharkiller.MCSignOnDoorRTK;
 
-//these must be imported
-
 import com.bukkit.sharkiller.MCSignOnDoorRTK.Config.*;
-//import com.bukkit.sharkiller.MCSignOnDoorRTK.RTK.*;
 import com.drdanick.McRKit.module.Module;
 import com.drdanick.McRKit.module.ModuleLoader;
 import com.drdanick.McRKit.module.ModuleMetadata;
@@ -59,34 +56,6 @@ public class MCSignOnDoorRTK extends Module{
 		Logger rootlog = Logger.getLogger("");
 		for (Handler h : rootlog.getHandlers()){ //remove all handlers
 			h.setFormatter(new McSodFormatter());
-		}
-		
-		try {
-			ServerConfig.load();
-
-			if(!ServerConfig.keyExists("hold-message"))
-				ServerConfig.setString("hold-message", "The server is not currently running.");
-
-			holdMessage = ServerConfig.getString("hold-message", "The server is not currently running.");
-
-			if(holdMessage.length() > 4){
-				if(holdMessage.length() > 80){
-					LOG.warning("[MCSignOnDoorRTK] Message length exceeds 80 characters.");
-					LOG.warning("[MCSignOnDoorRTK] Messages don't wrap on the client, even with newline characters, and may be cut off when shown.");
-				}
-			}else{
-				LOG.warning("[MCSignOnDoorRTK] Message is to short. Minimum 5 characters.");
-				LOG.warning("[MCSignOnDoorRTK] Using default message.");
-				holdMessage = "The server is not currently running.";
-			}
-
-			String ipaux = ServerConfig.getString("server-ip", null);
-			if(ipaux != null)
-				ip = InetAddress.getByName(ipaux);
-
-			port = ServerConfig.getInt("server-port", 25565);
-		} catch (IOException e) {
-			LOG.log(Level.SEVERE, "[MCSignOnDoorRTK] Cannot load server properties.", e);
 		}
 
 		registerCommand("msghold","<message>     Change the kick message when the server is on hold.");
@@ -235,10 +204,46 @@ public class MCSignOnDoorRTK extends Module{
 			
 		}
 	}
+	
+	protected void SetupConfig(){
+		try {
+			ServerConfig.load();
+
+			if(!ServerConfig.keyExists("hold-message"))
+				ServerConfig.setString("hold-message", "The server is not currently running.");
+
+			holdMessage = ServerConfig.getString("hold-message", "The server is not currently running.");
+
+			if(holdMessage.length() > 4){
+				if(holdMessage.length() > 80){
+					LOG.warning("[MCSignOnDoorRTK] Message length exceeds 80 characters.");
+					LOG.warning("[MCSignOnDoorRTK] Messages don't wrap on the client, even with newline characters, and may be cut off when shown.");
+				}
+			}else{
+				LOG.warning("[MCSignOnDoorRTK] Message is to short. Minimum 5 characters.");
+				LOG.warning("[MCSignOnDoorRTK] Using default message.");
+				holdMessage = "The server is not currently running.";
+			}
+
+			String ipaux = ServerConfig.getString("server-ip", null);
+			if(ipaux != null && !ipaux.equals("")){
+				LOG.info("ipaux: "+ipaux+" - "+ipaux.length());
+				ip = InetAddress.getByName(ipaux);
+			}
+				
+
+			port = ServerConfig.getInt("server-port", 25565);
+		} catch (IOException e) {
+			LOG.log(Level.SEVERE, "[MCSignOnDoorRTK] Cannot load server properties.", e);
+		}
+	}
 
 	protected void onEnable(){
 		LOG.info("[MCSignOnDoorRTK] Module enabled! v"+VERSION);
 		LOG.info(" - Developed by Tustin2121 and adapted by Sharkiller");
+		
+		SetupConfig();
+		
 		//Starting server
 		if (ip != null)
 			LOG.info("[MCSignOnDoorRTK] Starting server on "+ip+":"+port);
