@@ -1,4 +1,4 @@
-package com.bukkit.sharkiller.MCSignOnDoorRTK.Config;
+package com.sectorgamer.sharkiller.mcsignondoorrtk.Config;
 
 import java.io.File;
 import java.io.FileOutputStream;

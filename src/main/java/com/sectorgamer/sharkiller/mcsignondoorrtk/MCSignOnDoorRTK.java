@@ -1,10 +1,10 @@
-package com.bukkit.sharkiller.MCSignOnDoorRTK;
+package com.sectorgamer.sharkiller.mcsignondoorrtk;
 
-import com.bukkit.sharkiller.MCSignOnDoorRTK.Config.*;
 import com.drdanick.McRKit.module.Module;
 import com.drdanick.McRKit.module.ModuleLoader;
 import com.drdanick.McRKit.module.ModuleMetadata;
 import com.drdanick.McRKit.ToolkitEvent;
+import com.sectorgamer.sharkiller.mcsignondoorrtk.Config.*;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -40,13 +40,18 @@ import java.util.regex.Pattern;
 @SuppressWarnings("unused")
 public class MCSignOnDoorRTK extends Module{
 	private static final Logger LOG = Logger.getLogger("MCSOD");
-	private static final String VERSION = "1.3";
+	private static final String VERSION = "1.4";
 	private PropertiesFile ServerConfig = new PropertiesFile("server.properties");
 	
 	private static ServerSocket serve;
 	private static int port;
 	private static InetAddress ip = null;
+	
 	private static String holdMessage = "The server is not currently running.";
+	
+	private static String motdMessage = null; //"MCSignOnDoor: Server not Running.";
+	private static String numplayers = "0", maxplayers = "0";
+	private static boolean respondToPing = true, ratioSet = false;
 	
 	public MCSignOnDoorRTK(ModuleMetadata meta, ModuleLoader moduleLoader, ClassLoader cLoader){
 		super(meta,moduleLoader,cLoader,ToolkitEvent.ON_SERVER_HOLD,ToolkitEvent.ON_SERVER_RESTART);
@@ -93,6 +98,7 @@ public class MCSignOnDoorRTK extends Module{
 		}
 
 		@Override public void run() {
+			StringBuilder SBL = new StringBuilder();
 			try {
 				byte[] inbyte = new byte[256];
 				// char[] inchars = new char[128];
@@ -101,25 +107,30 @@ public class MCSignOnDoorRTK extends Module{
 					sendMessage("123456789101112");
 				 */
 				in.read(inbyte, 0, 1); //read connect byte
-
-				in.read(inbyte, 1, 2); //read message length
-				int len = parseChar(inbyte, 1);
-				in.read(inbyte, 3, len*2); //read message
-
-				{
-					ByteBuffer bb = ByteBuffer.wrap(Arrays.copyOfRange(inbyte, 3, (len+1)*2+1));
-					CharsetDecoder d = Charset.forName("UTF-16BE").newDecoder();
-					CharBuffer cb = d.decode(bb);
-					LOG.info("[MCSignOnDoorRTK] Reported client name: "+ cb.toString());
+				if (inbyte[0] == (byte)0xFE) { //Minecraft 1.8 Server Ping
+					SBL.append("[MCSignOnDoorRTK] Client pinging server. Responding.");
+					sendInfo(holdMessage, numplayers, maxplayers);
+				}else{
+					in.read(inbyte, 1, 2); //read message length
+					int len = parseChar(inbyte, 1);
+					in.read(inbyte, 3, len*2); //read message
+					
+					String reportedName;
+					{
+						ByteBuffer bb = ByteBuffer.wrap(Arrays.copyOfRange(inbyte, 3, (len+1)*2+1));
+						CharsetDecoder d = Charset.forName("UTF-16BE").newDecoder();
+						CharBuffer cb = d.decode(bb);
+						reportedName = cb.toString();
+						SBL.append("[MCSignOnDoorRTK] Reported client name: ").append(reportedName);// +". Turning away.");
+					}
+	
+					sendDisconnect(holdMessage);
 				}
-
-				// LOG.info("Reported client name: "+ new String(Arrays.copyOfRange(inbyte, 3, 2+len), Charset.forName("UTF-8")));
-
-				sendDisconnect(holdMessage);
-				// sendMessage(awayMessage);
-				sock.close();
 			} catch (IOException e) {
 				LOG.log(Level.SEVERE, "IOException while processing client!", e);
+			} finally {
+				LOG.info(SBL.toString());
+				try {sock.close();} catch (IOException e){}
 			}
 		}
 
@@ -145,6 +156,24 @@ public class MCSignOnDoorRTK extends Module{
 			bb.append(message);
 
 			// System.out.println(bb.toString());
+			out.write(bb.toByteArray());
+			out.flush();
+		}
+		
+		private void sendInfo(String message, String numPlayers, String maxPlayers) throws IOException {
+			ByteBuilder bb = new ByteBuilder();
+			bb.append((byte)0xFF);
+			bb.appendSpecial(message.length()+numPlayers.length()+maxPlayers.length()+2, 2, false);
+			bb.append(message);
+
+			//if (sendPlayerRatio)
+			{
+				bb.append((byte)0).append((byte)0xA7);
+				bb.append(numPlayers);
+				bb.append((byte)0).append((byte)0xA7);
+				bb.append(maxPlayers);
+			}
+//			System.out.println(bb.toString());
 			out.write(bb.toByteArray());
 			out.flush();
 		}
@@ -225,12 +254,13 @@ public class MCSignOnDoorRTK extends Module{
 
 			String ipaux = ServerConfig.getString("server-ip", null);
 			if(ipaux != null && !ipaux.equals("")){
-				LOG.info("ipaux: "+ipaux+" - "+ipaux.length());
 				ip = InetAddress.getByName(ipaux);
 			}
 				
 
 			port = ServerConfig.getInt("server-port", 25565);
+			
+			maxplayers = ServerConfig.getString("max-players");
 		} catch (IOException e) {
 			LOG.log(Level.SEVERE, "[MCSignOnDoorRTK] Cannot load server properties.", e);
 		}
